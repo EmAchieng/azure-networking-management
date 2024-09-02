@@ -21,13 +21,13 @@ Using Python to provide a modularized management of Azure network. It simplifies
 
 2. **Reusability:** Modules can be reused across projects or within the same project for different infrastructure components, promoting code reusability.
 
-3. **Scalability:** Easily add new modules for additional AWS resources or modify existing ones without impacting other parts of the SDK.
-
+3. **Scalability:** Easily add new modules for additional Azure resources or modify existing ones without impacting other parts
+4. 
 ### Prerequisites
 
-Before installing the SDK, ensure:
+Before building, ensure:
 - Python 3.9+ is installed on your system.
-- AWS credentials are configured:
+- Azure credentials are configured:
   - Either through environment variables (AZURE_CLIENT_ID, AZURE_SECRET, and AZURE_SUBSCRIPTION_ID),
   - Or using Azure CLI configuration (az login).
     
