@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "azure-infrastructure-automation"
+version = "0.1.0"
+description = "Automate Azure infrastructure management"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+azure-identity = "^1.9.0"
+azure-mgmt-network = "^20.0.0"
+azure-mgmt-compute = "^24.0.0"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
