@@ -12,7 +12,7 @@ Using Python to provide a modularized management of Azure network. It simplifies
 - **Azure NSG Module:** Facilitates Network Security Group (NSG) creation and rules management.
 - **Azure Subnet Module:** Supports subnet creation and configuration within VNets.
 - **Azure Virtual Network Gateway (VNG) Module:** Provides functionality for managing virtual network gateways for secure network connections.
-- **Azure Route Table Module: ** Manages route tables and associations with subnets for network traffic routing.
+- **Azure Route Table Module:** Manages route tables and associations with subnets for network traffic routing.
 - **Azure Scale Set Module:** Facilitates creation and management of Virtual Machine Scale Sets for scalable VM deployment.
 
 ### Benefits of Modularity
@@ -22,7 +22,7 @@ Using Python to provide a modularized management of Azure network. It simplifies
 2. **Reusability:** Modules can be reused across projects or within the same project for different infrastructure components, promoting code reusability.
 
 3. **Scalability:** Easily add new modules for additional Azure resources or modify existing ones without impacting other parts
-4. 
+
 ### Prerequisites
 
 Before building, ensure:
