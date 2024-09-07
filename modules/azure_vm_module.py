@@ -56,3 +56,34 @@ class AzureVMModule:
             print(f"VM '{vm_name}' deleted successfully.")
         except Exception as e:
             print(f"Failed to delete VM '{vm_name}'. Error: {e}")
+
+    def start_vm(self, resource_group_name, vm_name):
+        """Start a virtual machine (VM) in Azure."""
+        try:
+            start_poller = self.compute_client.virtual_machines.begin_start(
+                resource_group_name, vm_name)
+            start_poller.result()
+            print(f"VM '{vm_name}' started successfully.")
+        except Exception as e:
+            print(f"Failed to start VM '{vm_name}'. Error: {e}")
+
+    def stop_vm(self, resource_group_name, vm_name):
+        """Stop a virtual machine (VM) in Azure."""
+        try:
+            stop_poller = self.compute_client.virtual_machines.begin_power_off(
+                resource_group_name, vm_name)
+            stop_poller.result()
+            print(f"VM '{vm_name}' stopped successfully.")
+        except Exception as e:
+            print(f"Failed to stop VM '{vm_name}'. Error: {e}")
+
+    def get_vm_details(self, resource_group_name, vm_name):
+        """Retrieve details of an existing virtual machine (VM) in Azure."""
+        try:
+            vm_details = self.compute_client.virtual_machines.get(
+                resource_group_name, vm_name)
+            print(f"Details of VM '{vm_name}' retrieved successfully.")
+            return vm_details
+        except Exception as e:
+            print(f"Failed to retrieve details for VM '{vm_name}'. Error: {e}")
+            
