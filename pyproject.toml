@@ -2,7 +2,7 @@
 name = "azure-infrastructure-automation"
 version = "0.1.0"
 description = "Automate Azure infrastructure management"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["emillyachieng@gmail.com"]
 
 [tool.poetry.dependencies]
 python = "^3.9"

@@ -38,21 +38,35 @@ def main():
     resource_group = "resource_group"
     location = "switzerlandnorth"
 
+    # Track created resources
+    resources_created = {
+        'vnet': False,
+        'subnet': False,
+        'nsg': False,
+        'vng': False,
+        'route_table': False,
+        'scale_set': False,
+        'vm': False
+    }
+
     try:
         # Create VNet
         vnet_name = "test-vnet"
         vnet_module.create_vnet(resource_group, vnet_name, location, "10.0.0.0/16")
         logger.info(f"VNet '{vnet_name}' created successfully")
+        resources_created['vnet'] = True
 
         # Create Subnet
         subnet_name = "test-subnet"
         subnet_module.create_subnet(resource_group, vnet_name, subnet_name, "10.0.1.0/24")
         logger.info(f"Subnet '{subnet_name}' created successfully")
+        resources_created['subnet'] = True
 
         # Create NSG
         nsg_name = "test-nsg"
         nsg_module.create_nsg(resource_group, nsg_name, location)
         logger.info(f"NSG '{nsg_name}' created successfully")
+        resources_created['nsg'] = True
 
         # Create Virtual Network Gateway
         vng_name = "test-vng"
@@ -61,11 +75,13 @@ def main():
             "subnet_id", "public_ip_id"
         )
         logger.info(f"Virtual Network Gateway '{vng_name}' created successfully")
+        resources_created['vng'] = True
 
         # Create Route Table
         rt_name = "test-rt"
         route_table_module.create_route_table(resource_group, rt_name, location)
         logger.info(f"Route Table '{rt_name}' created successfully")
+        resources_created['route_table'] = True
 
         # Create Scale Set
         scale_set_name = "test-scale-set"
@@ -73,6 +89,7 @@ def main():
             resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id"
         )
         logger.info(f"Scale Set '{scale_set_name}' created successfully")
+        resources_created['scale_set'] = True
 
         # Create VM
         vm_name = "test-vm"
@@ -80,6 +97,7 @@ def main():
             resource_group, vm_name, location, "nic_id", "Standard_DS1_v2"
         )
         logger.info(f"VM '{vm_name}' created successfully")
+        resources_created['vm'] = True
 
         # List of all virtual network gateways
         vng_gateways = vng_module.list_virtual_network_gateways(resource_group)
@@ -92,34 +110,39 @@ def main():
         # Delete the virtual network gateway
         vng_module.delete_virtual_network_gateway(resource_group, vng_name)
         logger.info(f"Virtual Network Gateway '{vng_name}' deleted successfully")
+        resources_created['vng'] = False
 
     except Exception as e:
         logger.error(f"An error occurred during resource creation or deletion: {e}")
     finally:
         # Cleanup other resources (subnet, VNet, VM, etc.)
-        try:
-            vm_module.delete_vm(resource_group, vm_name)
-            logger.info(f"VM '{vm_name}' deleted successfully")
-        except Exception as e:
-            logger.error(f"Failed to delete VM '{vm_name}': {e}")
+        if resources_created['vm']:
+            try:
+                vm_module.delete_vm(resource_group, vm_name)
+                logger.info(f"VM '{vm_name}' deleted successfully")
+            except Exception as e:
+                logger.error(f"Failed to delete VM '{vm_name}': {e}")
         
-        try:
-            scale_set_module.delete_scale_set(resource_group, scale_set_name)
-            logger.info(f"Scale Set '{scale_set_name}' deleted successfully")
-        except Exception as e:
-            logger.error(f"Failed to delete Scale Set '{scale_set_name}': {e}")
+        if resources_created['scale_set']:
+            try:
+                scale_set_module.delete_scale_set(resource_group, scale_set_name)
+                logger.info(f"Scale Set '{scale_set_name}' deleted successfully")
+            except Exception as e:
+                logger.error(f"Failed to delete Scale Set '{scale_set_name}': {e}")
         
-        try:
-            subnet_module.delete_subnet(resource_group, vnet_name, subnet_name)
-            logger.info(f"Subnet '{subnet_name}' deleted successfully")
-        except Exception as e:
-            logger.error(f"Failed to delete Subnet '{subnet_name}': {e}")
+        if resources_created['subnet']:
+            try:
+                subnet_module.delete_subnet(resource_group, vnet_name, subnet_name)
+                logger.info(f"Subnet '{subnet_name}' deleted successfully")
+            except Exception as e:
+                logger.error(f"Failed to delete Subnet '{subnet_name}': {e}")
         
-        try:
-            vnet_module.delete_vnet(resource_group, vnet_name)
-            logger.info(f"VNet '{vnet_name}' deleted successfully")
-        except Exception as e:
-            logger.error(f"Failed to delete VNet '{vnet_name}': {e}")
-
+        if resources_created['vnet']:
+            try:
+                vnet_module.delete_vnet(resource_group, vnet_name)
+                logger.info(f"VNet '{vnet_name}' deleted successfully")
+            except Exception as e:
+                logger.error(f"Failed to delete VNet '{vnet_name}': {e}")
+                
 if __name__ == "__main__":
     main()
