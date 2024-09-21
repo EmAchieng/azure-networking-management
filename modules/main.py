@@ -25,6 +25,9 @@ def main():
      # Log the start of the operation
     logger.info("Starting the Azure resource creation process")
 
+    # Define a timeout (in seconds) for the Azure operations
+    timeout = 300  
+
     # Create instances of each Azure module class
     vnet_module = AzureVNetModule(subscription_id)
     vm_module = AzureVMModule(subscription_id)

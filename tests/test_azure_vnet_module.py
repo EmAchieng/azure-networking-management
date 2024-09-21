@@ -8,28 +8,49 @@ class TestAzureVNetModule(unittest.TestCase):
         self.vnet_module = AzureVNetModule(self.subscription_id)
         self.vnet_module.network_client = MagicMock()
 
+    @patch('time.sleep', return_value=None)  # Mocking time.sleep to avoid waiting in tests
     def test_create_vnet(self):
         resource_group_name = 'test_rg'
         vnet_name = 'test_vnet'
         location = 'switzerlandnorth'
         address_prefix = '10.0.0.0/16'
 
-        self.vnet_module.create_vnet(resource_group_name, vnet_name, location, address_prefix)
-        self.vnet_module.network_client.virtual_networks.begin_create_or_update.assert_called_once()
+        poller_mock = MagicMock()
+        poller_mock.done.side_effect = [False, False, True]  # Simulating polling behavior
+        poller_mock.result.return_value = {'name': vnet_name}
+        self.vnet_module.network_client.virtual_networks.begin_create_or_update.return_value = poller_mock
 
+        result = self.vnet_module.create_vnet(resource_group_name, vnet_name, location, address_prefix)
+
+        self.vnet_module.network_client.virtual_networks.begin_create_or_update.assert_called_once_with(
+            resource_group_name, vnet_name, {'location': location, 'address_space': {'address_prefixes': [address_prefix]}}
+        )
+        self.assertEqual(result['name'], vnet_name)
+
+    @patch('time.sleep', return_value=None)
     def test_delete_vnet(self):
         resource_group_name = 'test_rg'
         vnet_name = 'test_vnet'
 
+        poller_mock = MagicMock()
+        poller_mock.done.side_effect = [False, True]  # Simulating polling for delete operation
+        self.vnet_module.network_client.virtual_networks.begin_delete.return_value = poller_mock
+
         self.vnet_module.delete_vnet(resource_group_name, vnet_name)
-        self.vnet_module.network_client.virtual_networks.begin_delete.assert_called_once()
+
+        self.vnet_module.network_client.virtual_networks.begin_delete.assert_called_once_with(resource_group_name, vnet_name)
 
     def test_update_vnet(self):
         resource_group_name = 'test_rg'
         vnet_name = 'test_vnet'
         address_prefix = '10.0.0.0/16'
 
-        self.vnet_module.update_vnet(resource_group_name, vnet_name, address_prefix)
+        poller_mock = MagicMock()
+        poller_mock.done.side_effect = [False, True]
+        self.vnet_module.network_client.virtual_networks.begin_create_or_update.return_value = poller_mock
+
+        result = self.vnet_module.update_vnet(resource_group_name, vnet_name, address_prefix)
+
         self.vnet_module.network_client.virtual_networks.begin_create_or_update.assert_called_once_with(
             resource_group_name, vnet_name, {'address_space': {'address_prefixes': [address_prefix]}}
         )
