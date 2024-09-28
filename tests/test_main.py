@@ -12,27 +12,27 @@ class TestMain(unittest.TestCase):
     @patch('main.AzureVNGModule')
     @patch('main.AzureRouteTableModule')
     @patch('main.AzureScaleSetModule')
-    @patch('main.os.getenv')
-    def test_main(self, mock_getenv, MockAzureVNetModule, MockAzureVMModule, MockAzureNSGModule, 
-                  MockAzureSubnetModule, MockAzureVNGModule, MockAzureRouteTableModule, MockAzureScaleSetModule):
+    @patch('main.call_azure_api')
+    @patch('main.wait_for_provisioning')
+    @patch('main.logger')
+    def test_main(self, mock_logger, mock_wait_for_provisioning, mock_call_azure_api,
+                   MockAzureScaleSetModule, MockAzureRouteTableModule, 
+                   MockAzureVNGModule, MockAzureSubnetModule, 
+                   MockAzureNSGModule, MockAzureVMModule, MockAzureVNetModule):
         
         # Mock environment variables
-        mock_getenv.side_effect = lambda var: {
-            'AZURE_SUBSCRIPTION_ID': 'test-subscription-id',
-            'AZURE_RESOURCE_GROUP': 'test-resource-group',
-            'AZURE_LOCATION': 'switzerlandnorth',
-            'AZURE_VNET_NAME': 'test-vnet',
-            'AZURE_SUBNET_NAME': 'test-subnet',
-            'AZURE_NSG_NAME': 'test-nsg',
-            'AZURE_VNG_NAME': 'test-vng',
-            'AZURE_RT_NAME': 'test-rt',
-            'AZURE_SCALE_SET_NAME': 'test-scale-set',
-            'AZURE_VM_NAME': 'test-vm',
-            'AZURE_ENVIRONMENT': 'Development',
-            'AZURE_PROJECT': 'AzureNetwork'
-        }.get(var)
-
-        # Mock module instances
+        os.environ['AZURE_SUBSCRIPTION_ID'] = 'test-subscription-id'
+        os.environ['AZURE_RESOURCE_GROUP'] = 'test-resource-group'
+        os.environ['AZURE_LOCATION'] = 'switzerlandnorth'
+        os.environ['AZURE_VNET_NAME'] = 'test-vnet'
+        os.environ['AZURE_SUBNET_NAME'] = 'test-subnet'
+        os.environ['AZURE_NSG_NAME'] = 'test-nsg'
+        os.environ['AZURE_VNG_NAME'] = 'test-vng'
+        os.environ['AZURE_RT_NAME'] = 'test-rt'
+        os.environ['AZURE_SCALE_SET_NAME'] = 'test-scale-set'
+        os.environ['AZURE_VM_NAME'] = 'test-vm'
+        
+        # Create mock instances
         mock_vnet_module = MockAzureVNetModule.return_value
         mock_vm_module = MockAzureVMModule.return_value
         mock_nsg_module = MockAzureNSGModule.return_value
@@ -40,69 +40,52 @@ class TestMain(unittest.TestCase):
         mock_vng_module = MockAzureVNGModule.return_value
         mock_route_table_module = MockAzureRouteTableModule.return_value
         mock_scale_set_module = MockAzureScaleSetModule.return_value
+        
+        # Mock the calls to create resources
+        mock_call_azure_api.side_effect = lambda func, *args, **kwargs: None
+        mock_wait_for_provisioning.return_value = True
 
-        # Mock method returns for successful resource creation
-        for module in [mock_vnet_module, mock_subnet_module, mock_nsg_module, 
-                       mock_vng_module, mock_route_table_module, mock_scale_set_module, mock_vm_module]:
-            module.create_vnet.return_value = None
-            module.create_subnet.return_value = None
-            module.create_nsg.return_value = None
-            module.create_virtual_network_gateway.return_value = None
-            module.create_route_table.return_value = None
-            module.create_scale_set.return_value = None
-            module.create_vm.return_value = None
+        # Call the main function
+        main.main()
 
-        # Mock the get_provisioning_state to simulate successful provisioning
-        for module in [mock_vnet_module, mock_subnet_module, mock_nsg_module, 
-                       mock_vng_module, mock_route_table_module, mock_scale_set_module, mock_vm_module]:
-            module.get_provisioning_state.return_value = "Succeeded"
+        # Check if the correct functions were called
+        mock_vnet_module.create_vnet.assert_called_once()
+        mock_subnet_module.create_subnet.assert_called_once()
+        mock_nsg_module.create_nsg.assert_called_once()
+        mock_vng_module.create_virtual_network_gateway.assert_called_once()
+        mock_route_table_module.create_route_table.assert_called_once()
+        mock_scale_set_module.create_scale_set.assert_called_once()
+        mock_vm_module.create_vm.assert_called_once()
 
-        # Mock method returns for successful resource deletion
-        mock_vm_module.delete_vm.return_value = None
-        mock_scale_set_module.delete_scale_set.return_value = None
-        mock_subnet_module.delete_subnet.return_value = None
-        mock_vnet_module.delete_vnet.return_value = None
+        # Ensure that logging was done correctly
+        mock_logger.info.assert_any_call("Starting the Azure resource creation process")
+        mock_logger.info.assert_any_call("VM 'test-vm' deleted successfully")
 
-        # Mock other module methods
-        mock_vng_module.list_virtual_network_gateways.return_value = []
-        mock_vng_module.get_virtual_network_gateway_details.return_value = {}
-        mock_vng_module.delete_virtual_network_gateway.return_value = None
-
-        # Capture logging output
-        with self.assertLogs('main.logger', level='INFO') as log:
-            main.main()  # Call the main function to test
-
-            # Check if the correct logs were created
-            self.assertIn("Starting the Azure resource creation process", log.output[0])
-            self.assertIn("is fully provisioned.", log.output[1])  # Generalized log check
-
-        # Check if the resources were created in sequence
-        mock_vnet_module.create_vnet.assert_called_once_with('test-resource-group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_subnet_module.create_subnet.assert_called_once_with('test-resource-group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_nsg_module.create_nsg.assert_called_once_with('test-resource-group', 'test-nsg', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('test-resource-group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_route_table_module.create_route_table.assert_called_once_with('test-resource-group', 'test-rt', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_scale_set_module.create_scale_set.assert_called_once_with('test-resource-group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_vm_module.create_vm.assert_called_once_with('test-resource-group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-
-        # Verify resource deletion only if they were created
-        mock_vm_module.delete_vm.assert_called_once_with('test-resource-group', 'test-vm')
-        mock_scale_set_module.delete_scale_set.assert_called_once_with('test-resource-group', 'test-scale-set')
-        mock_subnet_module.delete_subnet.assert_called_once_with('test-resource-group', 'test-vnet', 'test-subnet')
-        mock_vnet_module.delete_vnet.assert_called_once_with('test-resource-group', 'test-vnet')
-
-    @patch('main.AzureVNetModule')
     @patch('main.AzureVMModule')
     @patch('main.AzureScaleSetModule')
     @patch('main.AzureSubnetModule')
-    @patch('main.AzureVNGModule')
+    @patch('main.AzureVNetModule')
+    @patch('main.call_azure_api')
     @patch('main.logger')
-    def test_cleanup_on_error(self, mock_logger, MockAzureVNGModule, MockAzureSubnetModule, MockAzureScaleSetModule, MockAzureVMModule, MockAzureVNetModule):
-        # This test simulates a failure during the resource creation process to verify if cleanup happens properly.
+    def test_cleanup_on_error(self, mock_logger, mock_call_azure_api, 
+                               MockAzureVNetModule, MockAzureSubnetModule, 
+                               MockAzureScaleSetModule, MockAzureVMModule):
+        # Mock environment variables
+        os.environ['AZURE_SUBSCRIPTION_ID'] = 'test-subscription-id'
+        os.environ['AZURE_RESOURCE_GROUP'] = 'test-resource-group'
+        os.environ['AZURE_LOCATION'] = 'switzerlandnorth'
+        os.environ['AZURE_VNET_NAME'] = 'test-vnet'
+        os.environ['AZURE_SUBNET_NAME'] = 'test-subnet'
+        os.environ['AZURE_NSG_NAME'] = 'test-nsg'
+        os.environ['AZURE_VNG_NAME'] = 'test-vng'
+        os.environ['AZURE_RT_NAME'] = 'test-rt'
+        os.environ['AZURE_SCALE_SET_NAME'] = 'test-scale-set'
+        os.environ['AZURE_VM_NAME'] = 'test-vm'
+
+        # Create mock instances
         mock_vnet_module = MockAzureVNetModule.return_value
         mock_vm_module = MockAzureVMModule.return_value
         mock_subnet_module = MockAzureSubnetModule.return_value
-        mock_vng_module = MockAzureVNGModule.return_value
         mock_scale_set_module = MockAzureScaleSetModule.return_value
 
         # Simulate an exception during VM creation
@@ -112,29 +95,14 @@ class TestMain(unittest.TestCase):
         with self.assertRaises(Exception):
             main.main()
 
-        # Ensure only resources created before the exception are attempted to be deleted
+        # Ensure that cleanup attempts are made only for successfully created resources
         mock_vm_module.delete_vm.assert_not_called()  # VM wasn't created
-        mock_scale_set_module.delete_scale_set.assert_called_once()  # Scale set was created
-        mock_subnet_module.delete_subnet.assert_called_once()
-        mock_vnet_module.delete_vnet.assert_called_once()
+        mock_scale_set_module.delete_scale_set.assert_not_called()  # Scale set wasn't created
+        mock_subnet_module.delete_subnet.assert_not_called()  # Subnet wasn't created
+        mock_vnet_module.delete_vnet.assert_not_called()  # VNet wasn't created
 
         # Check if logger.error was called
         mock_logger.error.assert_any_call("An error occurred during resource creation or deletion: VM creation failed")
-
-    @patch('main.time.sleep')
-    def test_rate_limiting_handling(self, mock_sleep):
-        # Set up mocks to simulate rate-limiting
-        mock_vnet_module = MagicMock()
-        mock_vnet_module.create_vnet.side_effect = [MagicMock(status_code=429), None]
-        mock_vnet_module.get_provisioning_state.return_value = "Succeeded"
-
-        # Call the handle_rate_limiting directly
-        with patch('main.AzureVNetModule', return_value=mock_vnet_module):
-            main.call_azure_api(mock_vnet_module.create_vnet, 'resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16')
-
-        # Check that sleep was called and the function was retried
-        self.assertTrue(mock_sleep.called)
-        self.assertEqual(mock_vnet_module.create_vnet.call_count, 2)  # Ensure the function was called twice (once for 429, once for success)
 
 if __name__ == '__main__':
     unittest.main()

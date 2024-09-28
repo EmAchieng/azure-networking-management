@@ -21,7 +21,7 @@ load_dotenv()
 # Retrieve Azure subscription ID and other values from environment variables
 subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
 resource_group = os.getenv('AZURE_RESOURCE_GROUP', 'default-resource-group')
-location = os.getenv('AZURE_LOCATION', 'switzerlandnorth')
+location = os.getenv('AZURE_LOCATION', 'switzerlandnorth') #switzerlandnorth by default if not set
 tags = {
     "Environment": os.getenv('AZURE_ENVIRONMENT', 'Development'),
     "Project": os.getenv('AZURE_PROJECT', 'AzureNetwork')
@@ -82,7 +82,13 @@ def main():
     scale_set_module = AzureScaleSetModule(subscription_id)
 
     resources_created = {
-        'vnet': False, 'subnet': False, 'nsg': False, 'vng': False, 'route_table': False, 'scale_set': False, 'vm': False
+        'vnet': False,
+        'subnet': False,
+        'nsg': False,
+        'vng': False,
+        'route_table': False,
+        'scale_set': False,
+        'vm': False
     }
 
     try:
@@ -94,7 +100,7 @@ def main():
         else:
             raise Exception(f"VNet '{vnet_name}' failed to provision")
 
-        # Create Subnet
+        # Create Subnet (depends on VNet)
         subnet_name = os.getenv('AZURE_SUBNET_NAME', 'test-subnet')
         call_azure_api(subnet_module.create_subnet, resource_group, vnet_name, subnet_name, "10.0.1.0/24", tags)
         if wait_for_provisioning(subnet_module, resource_group, subnet_name, timeout):
@@ -110,7 +116,7 @@ def main():
         else:
             raise Exception(f"NSG '{nsg_name}' failed to provision")
 
-        # Create Virtual Network Gateway
+        # Create Virtual Network Gateway (depends on VNet)
         vng_name = os.getenv('AZURE_VNG_NAME', 'test-vng')
         call_azure_api(vng_module.create_virtual_network_gateway, resource_group, vng_name, location, "Vpn", "RouteBased", "subnet_id", "public_ip_id", tags)
         if wait_for_provisioning(vng_module, resource_group, vng_name, timeout):
@@ -118,7 +124,7 @@ def main():
         else:
             raise Exception(f"Virtual Network Gateway '{vng_name}' failed to provision")
 
-        # Create Route Table
+        # Create Route Table (can be independent but might be used with Subnet)
         rt_name = os.getenv('AZURE_RT_NAME', 'test-rt')
         call_azure_api(route_table_module.create_route_table, resource_group, rt_name, location, tags)
         if wait_for_provisioning(route_table_module, resource_group, rt_name, timeout):
@@ -126,7 +132,7 @@ def main():
         else:
             raise Exception(f"Route Table '{rt_name}' failed to provision")
 
-        # Create Scale Set
+        # Create Scale Set (can depend on Subnet)
         scale_set_name = os.getenv('AZURE_SCALE_SET_NAME', 'test-scale-set')
         call_azure_api(scale_set_module.create_scale_set, resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id", tags)
         if wait_for_provisioning(scale_set_module, resource_group, scale_set_name, timeout):
@@ -134,7 +140,7 @@ def main():
         else:
             raise Exception(f"Scale Set '{scale_set_name}' failed to provision")
 
-        # Create VM
+        # Create VM (depends on Scale Set and Subnet)
         vm_name = os.getenv('AZURE_VM_NAME', 'test-vm')
         call_azure_api(vm_module.create_vm, resource_group, vm_name, location, "nic_id", "Standard_DS1_v2", tags)
         if wait_for_provisioning(vm_module, resource_group, vm_name, timeout):
@@ -176,4 +182,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
