@@ -37,6 +37,15 @@ class TestMain(unittest.TestCase):
         mock_scale_set_module.create_scale_set.return_value = None
         mock_vm_module.create_vm.return_value = None
 
+        # Mock the get_provisioning_state to simulate successful provisioning
+        mock_vnet_module.get_provisioning_state.return_value = "Succeeded"
+        mock_subnet_module.get_provisioning_state.return_value = "Succeeded"
+        mock_nsg_module.get_provisioning_state.return_value = "Succeeded"
+        mock_vng_module.get_provisioning_state.return_value = "Succeeded"
+        mock_route_table_module.get_provisioning_state.return_value = "Succeeded"
+        mock_scale_set_module.get_provisioning_state.return_value = "Succeeded"
+        mock_vm_module.get_provisioning_state.return_value = "Succeeded"
+
         # Mock method returns for successful resource deletion
         mock_vm_module.delete_vm.return_value = None
         mock_scale_set_module.delete_scale_set.return_value = None

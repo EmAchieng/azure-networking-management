@@ -21,6 +21,24 @@ subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def wait_for_provisioning(module, resource_group, resource_name, timeout=300, interval=10):
+    """
+    Polls the Azure resource to check its provisioning state until it's "Succeeded" or a timeout occurs.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        provisioning_state = module.get_provisioning_state(resource_group, resource_name)
+        if provisioning_state == 'Succeeded':
+            logger.info(f"{resource_name} is fully provisioned.")
+            return True
+        elif provisioning_state in ['Failed', 'Canceled']:
+            logger.error(f"{resource_name} provisioning failed with state: {provisioning_state}.")
+            return False
+        logger.info(f"Waiting for {resource_name} to be provisioned... Current state: {provisioning_state}")
+        time.sleep(interval)
+    logger.error(f"Timeout occurred while waiting for {resource_name} provisioning.")
+    return False
+
 def main():
      # Log the start of the operation
     logger.info("Starting the Azure resource creation process")
@@ -56,20 +74,26 @@ def main():
         # Create VNet
         vnet_name = "test-vnet"
         vnet_module.create_vnet(resource_group, vnet_name, location, "10.0.0.0/16")
-        logger.info(f"VNet '{vnet_name}' created successfully")
-        resources_created['vnet'] = True
+        if wait_for_provisioning(vnet_module, resource_group, vnet_name, timeout):
+            resources_created['vnet'] = True
+        else:
+            raise Exception(f"VNet '{vnet_name}' failed to provision")
 
         # Create Subnet
         subnet_name = "test-subnet"
         subnet_module.create_subnet(resource_group, vnet_name, subnet_name, "10.0.1.0/24")
-        logger.info(f"Subnet '{subnet_name}' created successfully")
-        resources_created['subnet'] = True
+        if wait_for_provisioning(subnet_module, resource_group, subnet_name, timeout):
+            resources_created['subnet'] = True
+        else:
+            raise Exception(f"Subnet '{subnet_name}' failed to provision")
 
         # Create NSG
         nsg_name = "test-nsg"
         nsg_module.create_nsg(resource_group, nsg_name, location)
-        logger.info(f"NSG '{nsg_name}' created successfully")
-        resources_created['nsg'] = True
+        if wait_for_provisioning(nsg_module, resource_group, nsg_name, timeout):
+            resources_created['nsg'] = True
+        else:
+            raise Exception(f"NSG '{nsg_name}' failed to provision")
 
         # Create Virtual Network Gateway
         vng_name = "test-vng"
@@ -77,30 +101,38 @@ def main():
             resource_group, vng_name, location, "Vpn", "RouteBased", 
             "subnet_id", "public_ip_id"
         )
-        logger.info(f"Virtual Network Gateway '{vng_name}' created successfully")
-        resources_created['vng'] = True
+        if wait_for_provisioning(vng_module, resource_group, vng_name, timeout):
+            resources_created['vng'] = True
+        else:
+            raise Exception(f"Virtual Network Gateway '{vng_name}' failed to provision")
 
         # Create Route Table
         rt_name = "test-rt"
         route_table_module.create_route_table(resource_group, rt_name, location)
-        logger.info(f"Route Table '{rt_name}' created successfully")
-        resources_created['route_table'] = True
+        if wait_for_provisioning(route_table_module, resource_group, rt_name, timeout):
+            resources_created['route_table'] = True
+        else:
+            raise Exception(f"Route Table '{rt_name}' failed to provision")
 
         # Create Scale Set
         scale_set_name = "test-scale-set"
         scale_set_module.create_scale_set(
             resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id"
         )
-        logger.info(f"Scale Set '{scale_set_name}' created successfully")
-        resources_created['scale_set'] = True
+        if wait_for_provisioning(scale_set_module, resource_group, scale_set_name, timeout):
+            resources_created['scale_set'] = True
+        else:
+            raise Exception(f"Scale Set '{scale_set_name}' failed to provision")
 
         # Create VM
         vm_name = "test-vm"
         vm_module.create_vm(
             resource_group, vm_name, location, "nic_id", "Standard_DS1_v2"
         )
-        logger.info(f"VM '{vm_name}' created successfully")
-        resources_created['vm'] = True
+        if wait_for_provisioning(vm_module, resource_group, vm_name, timeout):
+            resources_created['vm'] = True
+        else:
+            raise Exception(f"VM '{vm_name}' failed to provision")
 
         # List of all virtual network gateways
         vng_gateways = vng_module.list_virtual_network_gateways(resource_group)
