@@ -1,5 +1,6 @@
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
+from azure.core.exceptions import AzureError
 import os
 
 class AzureVMModule:
@@ -41,9 +42,11 @@ class AzureVMModule:
         try:
             vm_poller = self.compute_client.virtual_machines.begin_create_or_update(
                 resource_group_name, vm_name, vm_params)
-            vm_result = vm_poller.result()
+            vm_result = vm_poller.result(timeout=timeout)  # Set timeout for polling
             print(f"VM '{vm_name}' created successfully.")
             return vm_result
+        except AzureError as azure_err:
+            print(f"Azure error occurred while creating VM '{vm_name}'. Error: {azure_err}")
         except Exception as e:
             print(f"Failed to create VM '{vm_name}'. Error: {e}")
 
@@ -52,8 +55,10 @@ class AzureVMModule:
         try:
             delete_poller = self.compute_client.virtual_machines.begin_delete(
                 resource_group_name, vm_name)
-            delete_poller.result()
+            delete_poller.result(timeout=timeout)  # Set timeout for polling
             print(f"VM '{vm_name}' deleted successfully.")
+        except AzureError as azure_err:
+            print(f"Azure error occurred while deleting VM '{vm_name}'. Error: {azure_err}")
         except Exception as e:
             print(f"Failed to delete VM '{vm_name}'. Error: {e}")
 
@@ -62,8 +67,10 @@ class AzureVMModule:
         try:
             start_poller = self.compute_client.virtual_machines.begin_start(
                 resource_group_name, vm_name)
-            start_poller.result()
+            start_poller.result(timeout=timeout)  # Set timeout for polling
             print(f"VM '{vm_name}' started successfully.")
+        except AzureError as azure_err:
+            print(f"Azure error occurred while starting VM '{vm_name}'. Error: {azure_err}")
         except Exception as e:
             print(f"Failed to start VM '{vm_name}'. Error: {e}")
 
@@ -72,8 +79,10 @@ class AzureVMModule:
         try:
             stop_poller = self.compute_client.virtual_machines.begin_power_off(
                 resource_group_name, vm_name)
-            stop_poller.result()
+            stop_poller.result(timeout=timeout)  # Set timeout for polling
             print(f"VM '{vm_name}' stopped successfully.")
+        except AzureError as azure_err:
+            print(f"Azure error occurred while stopping VM '{vm_name}'. Error: {azure_err}")
         except Exception as e:
             print(f"Failed to stop VM '{vm_name}'. Error: {e}")
 
@@ -84,6 +93,8 @@ class AzureVMModule:
                 resource_group_name, vm_name)
             print(f"Details of VM '{vm_name}' retrieved successfully.")
             return vm_details
+        except AzureError as azure_err:
+            print(f"Azure error occurred while retrieving details for VM '{vm_name}'. Error: {azure_err}")
         except Exception as e:
             print(f"Failed to retrieve details for VM '{vm_name}'. Error: {e}")
             
