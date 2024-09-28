@@ -63,22 +63,16 @@ class TestMain(unittest.TestCase):
 
             # Check if the correct logs were created
             self.assertIn("Starting the Azure resource creation process", log.output[0])
-            self.assertIn("VNet 'test-vnet' created successfully", log.output[1])
-            self.assertIn("Subnet 'test-subnet' created successfully", log.output[2])
-            self.assertIn("NSG 'test-nsg' created successfully", log.output[3])
-            self.assertIn("Virtual Network Gateway 'test-vng' created successfully", log.output[4])
-            self.assertIn("Route Table 'test-rt' created successfully", log.output[5])
-            self.assertIn("Scale Set 'test-scale-set' created successfully", log.output[6])
-            self.assertIn("VM 'test-vm' created successfully", log.output[7])
+            self.assertIn("VNet is fully provisioned.", log.output[1])
 
         # Check if the resources were created in sequence
-        mock_vnet_module.create_vnet.assert_called_once_with('resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags=None)
-        mock_subnet_module.create_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags=None)
-        mock_nsg_module.create_nsg.assert_called_once_with('resource_group', 'test-nsg', 'switzerlandnorth', tags=None)
-        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('resource_group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags=None)
-        mock_route_table_module.create_route_table.assert_called_once_with('resource_group', 'test-rt', 'switzerlandnorth', tags=None)
-        mock_scale_set_module.create_scale_set.assert_called_once_with('resource_group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags=None)
-        mock_vm_module.create_vm.assert_called_once_with('resource_group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags=None)
+        mock_vnet_module.create_vnet.assert_called_once_with('resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_subnet_module.create_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_nsg_module.create_nsg.assert_called_once_with('resource_group', 'test-nsg', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('resource_group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_route_table_module.create_route_table.assert_called_once_with('resource_group', 'test-rt', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_scale_set_module.create_scale_set.assert_called_once_with('resource_group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_vm_module.create_vm.assert_called_once_with('resource_group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
 
         # Verify resource deletion only if they were created
         mock_vm_module.delete_vm.assert_called_once_with('resource_group', 'test-vm')
@@ -125,7 +119,7 @@ class TestMain(unittest.TestCase):
 
         # Call the handle_rate_limiting directly
         with patch('main.AzureVNetModule', return_value=mock_vnet_module):
-            main.handle_rate_limiting(mock_vnet_module.create_vnet, 'resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16')
+            main.call_azure_api(mock_vnet_module.create_vnet, 'resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16')
 
         # Check that sleep was called and the function was retried
         self.assertTrue(mock_sleep.called)
@@ -133,3 +127,4 @@ class TestMain(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    

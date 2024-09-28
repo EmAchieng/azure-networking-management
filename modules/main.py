@@ -2,6 +2,8 @@ import os
 import logging
 import time
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from requests.exceptions import HTTPError
 from dotenv import load_dotenv
 
 from modules.azure_vnet_module import AzureVNetModule
@@ -23,6 +25,21 @@ subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Retry decorator for transient issues with exponential backoff
+@retry(
+    stop=stop_after_attempt(5),  # Retry up to 5 attempts
+    wait=wait_exponential(multiplier=1, min=4, max=60),  # Exponential backoff from 4s to 60s
+    retry=retry_if_exception_type(HTTPError)  # Only retry on HTTP errors
+)
+
+def call_azure_api(func, *args, **kwargs):
+    """
+    Wrapper function for Azure API calls with retry logic.
+    """
+    response = func(*args, **kwargs)
+    response.raise_for_status()  # Raise an exception for 4XX/5XX HTTP errors
+    return response
+
 def wait_for_provisioning(module, resource_group, resource_name, timeout=300, interval=10):
     """
     Polls the Azure resource to check its provisioning state until it's "Succeeded" or a timeout occurs.
@@ -41,24 +58,10 @@ def wait_for_provisioning(module, resource_group, resource_name, timeout=300, in
     logger.error(f"Timeout occurred while waiting for {resource_name} provisioning.")
     return False
 
-def handle_rate_limiting(func, *args, **kwargs):
-    """
-    A wrapper to handle rate-limiting based on HTTP 429 responses.
-    """
-    while True:
-        response = func(*args, **kwargs)
-        if response.status_code == 429:  # Check for rate-limiting
-            logger.warning("Rate limit exceeded. Retrying after a short delay...")
-            time.sleep(30)  # Wait for 30 seconds before retrying; adjust as necessary
-            continue
-        return response
-
 def main():
-     # Log the start of the operation
     logger.info("Starting the Azure resource creation process")
 
-    # Define a timeout (in seconds) for the Azure operations
-    timeout = 300  
+    timeout = 300  # Timeout for resource provisioning
 
     # Create instances of each Azure module class
     vnet_module = AzureVNetModule(subscription_id)
@@ -69,31 +72,17 @@ def main():
     route_table_module = AzureRouteTableModule(subscription_id)
     scale_set_module = AzureScaleSetModule(subscription_id)
 
-    # Define resources
     resource_group = "resource_group"
     location = "switzerlandnorth"
 
-     Define tags for the resources
-    tags = {
-        "Environment": "Development",
-        "Project": "AzureNetwork"
-    }
+    tags = {"Environment": "Development", "Project": "AzureNetwork"}
 
-    # Track created resources
-    resources_created = {
-        'vnet': False,
-        'subnet': False,
-        'nsg': False,
-        'vng': False,
-        'route_table': False,
-        'scale_set': False,
-        'vm': False
-    }
+    resources_created = {'vnet': False, 'subnet': False, 'nsg': False, 'vng': False, 'route_table': False, 'scale_set': False, 'vm': False}
 
     try:
         # Create VNet
         vnet_name = "test-vnet"
-        vnet_module.create_vnet(resource_group, vnet_name, location, "10.0.0.0/16", tags)
+        call_azure_api(vnet_module.create_vnet, resource_group, vnet_name, location, "10.0.0.0/16", tags)
         if wait_for_provisioning(vnet_module, resource_group, vnet_name, timeout):
             resources_created['vnet'] = True
         else:
@@ -101,7 +90,7 @@ def main():
 
         # Create Subnet
         subnet_name = "test-subnet"
-        subnet_module.create_subnet(resource_group, vnet_name, subnet_name, "10.0.1.0/24", tags)
+        call_azure_api(subnet_module.create_subnet, resource_group, vnet_name, subnet_name, "10.0.1.0/24", tags)
         if wait_for_provisioning(subnet_module, resource_group, subnet_name, timeout):
             resources_created['subnet'] = True
         else:
@@ -109,7 +98,7 @@ def main():
 
         # Create NSG
         nsg_name = "test-nsg"
-        nsg_module.create_nsg(resource_group, nsg_name, location, tags)
+        call_azure_api(nsg_module.create_nsg, resource_group, nsg_name, location, tags)
         if wait_for_provisioning(nsg_module, resource_group, nsg_name, timeout):
             resources_created['nsg'] = True
         else:
@@ -117,10 +106,7 @@ def main():
 
         # Create Virtual Network Gateway
         vng_name = "test-vng"
-        vng_module.create_virtual_network_gateway(
-            resource_group, vng_name, location, "Vpn", "RouteBased", 
-            "subnet_id", "public_ip_id", tags
-        )
+        call_azure_api(vng_module.create_virtual_network_gateway, resource_group, vng_name, location, "Vpn", "RouteBased", "subnet_id", "public_ip_id", tags)
         if wait_for_provisioning(vng_module, resource_group, vng_name, timeout):
             resources_created['vng'] = True
         else:
@@ -128,7 +114,7 @@ def main():
 
         # Create Route Table
         rt_name = "test-rt"
-        route_table_module.create_route_table(resource_group, rt_name, location, tags)
+        call_azure_api(route_table_module.create_route_table, resource_group, rt_name, location, tags)
         if wait_for_provisioning(route_table_module, resource_group, rt_name, timeout):
             resources_created['route_table'] = True
         else:
@@ -136,9 +122,7 @@ def main():
 
         # Create Scale Set
         scale_set_name = "test-scale-set"
-        scale_set_module.create_scale_set(
-            resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id", tags
-        )
+        call_azure_api(scale_set_module.create_scale_set, resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id", tags)
         if wait_for_provisioning(scale_set_module, resource_group, scale_set_name, timeout):
             resources_created['scale_set'] = True
         else:
@@ -146,9 +130,7 @@ def main():
 
         # Create VM
         vm_name = "test-vm"
-        vm_module.create_vm(
-            resource_group, vm_name, location, "nic_id", "Standard_DS1_v2", tags
-        )
+        call_azure_api(vm_module.create_vm, resource_group, vm_name, location, "nic_id", "Standard_DS1_v2", tags)
         if wait_for_provisioning(vm_module, resource_group, vm_name, timeout):
             resources_created['vm'] = True
         else:
@@ -163,38 +145,38 @@ def main():
         logger.info(f"VNG Details: {vng_details}")
 
         # Delete the virtual network gateway
-        vng_module.delete_virtual_network_gateway(resource_group, vng_name)
+        call_azure_api(vng_module.delete_virtual_network_gateway, resource_group, vng_name)
         logger.info(f"Virtual Network Gateway '{vng_name}' deleted successfully")
         resources_created['vng'] = False
 
     except Exception as e:
         logger.error(f"An error occurred during resource creation or deletion: {e}")
     finally:
-        # Cleanup other resources (subnet, VNet, VM, etc.)
+        # Cleanup logic here
         if resources_created['vm']:
             try:
-                vm_module.delete_vm(resource_group, vm_name)
+                call_azure_api(vm_module.delete_vm, resource_group, vm_name)
                 logger.info(f"VM '{vm_name}' deleted successfully")
             except Exception as e:
                 logger.error(f"Failed to delete VM '{vm_name}': {e}")
         
         if resources_created['scale_set']:
             try:
-                scale_set_module.delete_scale_set(resource_group, scale_set_name)
+                call_azure_api(scale_set_module.delete_scale_set, resource_group, scale_set_name)
                 logger.info(f"Scale Set '{scale_set_name}' deleted successfully")
             except Exception as e:
                 logger.error(f"Failed to delete Scale Set '{scale_set_name}': {e}")
         
         if resources_created['subnet']:
             try:
-                subnet_module.delete_subnet(resource_group, vnet_name, subnet_name)
+                call_azure_api(subnet_module.delete_subnet, resource_group, vnet_name, subnet_name)
                 logger.info(f"Subnet '{subnet_name}' deleted successfully")
             except Exception as e:
                 logger.error(f"Failed to delete Subnet '{subnet_name}': {e}")
         
         if resources_created['vnet']:
             try:
-                vnet_module.delete_vnet(resource_group, vnet_name)
+                call_azure_api(vnet_module.delete_vnet, resource_group, vnet_name)
                 logger.info(f"VNet '{vnet_name}' deleted successfully")
             except Exception as e:
                 logger.error(f"Failed to delete VNet '{vnet_name}': {e}")
