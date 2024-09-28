@@ -72,13 +72,13 @@ class TestMain(unittest.TestCase):
             self.assertIn("VM 'test-vm' created successfully", log.output[7])
 
         # Check if the resources were created in sequence
-        mock_vnet_module.create_vnet.assert_called_once_with('resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16')
-        mock_subnet_module.create_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet', '10.0.1.0/24')
-        mock_nsg_module.create_nsg.assert_called_once_with('resource_group', 'test-nsg', 'switzerlandnorth')
-        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('resource_group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id')
-        mock_route_table_module.create_route_table.assert_called_once_with('resource_group', 'test-rt', 'switzerlandnorth')
-        mock_scale_set_module.create_scale_set.assert_called_once_with('resource_group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id')
-        mock_vm_module.create_vm.assert_called_once_with('resource_group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2')
+        mock_vnet_module.create_vnet.assert_called_once_with('resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags=None)
+        mock_subnet_module.create_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags=None)
+        mock_nsg_module.create_nsg.assert_called_once_with('resource_group', 'test-nsg', 'switzerlandnorth', tags=None)
+        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('resource_group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags=None)
+        mock_route_table_module.create_route_table.assert_called_once_with('resource_group', 'test-rt', 'switzerlandnorth', tags=None)
+        mock_scale_set_module.create_scale_set.assert_called_once_with('resource_group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags=None)
+        mock_vm_module.create_vm.assert_called_once_with('resource_group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags=None)
 
         # Verify resource deletion only if they were created
         mock_vm_module.delete_vm.assert_called_once_with('resource_group', 'test-vm')

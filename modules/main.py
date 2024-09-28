@@ -52,7 +52,7 @@ def handle_rate_limiting(func, *args, **kwargs):
             time.sleep(30)  # Wait for 30 seconds before retrying; adjust as necessary
             continue
         return response
-        
+
 def main():
      # Log the start of the operation
     logger.info("Starting the Azure resource creation process")
@@ -73,6 +73,12 @@ def main():
     resource_group = "resource_group"
     location = "switzerlandnorth"
 
+     Define tags for the resources
+    tags = {
+        "Environment": "Development",
+        "Project": "AzureNetwork"
+    }
+
     # Track created resources
     resources_created = {
         'vnet': False,
@@ -87,7 +93,7 @@ def main():
     try:
         # Create VNet
         vnet_name = "test-vnet"
-        vnet_module.create_vnet(resource_group, vnet_name, location, "10.0.0.0/16")
+        vnet_module.create_vnet(resource_group, vnet_name, location, "10.0.0.0/16", tags)
         if wait_for_provisioning(vnet_module, resource_group, vnet_name, timeout):
             resources_created['vnet'] = True
         else:
@@ -95,7 +101,7 @@ def main():
 
         # Create Subnet
         subnet_name = "test-subnet"
-        subnet_module.create_subnet(resource_group, vnet_name, subnet_name, "10.0.1.0/24")
+        subnet_module.create_subnet(resource_group, vnet_name, subnet_name, "10.0.1.0/24", tags)
         if wait_for_provisioning(subnet_module, resource_group, subnet_name, timeout):
             resources_created['subnet'] = True
         else:
@@ -103,7 +109,7 @@ def main():
 
         # Create NSG
         nsg_name = "test-nsg"
-        nsg_module.create_nsg(resource_group, nsg_name, location)
+        nsg_module.create_nsg(resource_group, nsg_name, location, tags)
         if wait_for_provisioning(nsg_module, resource_group, nsg_name, timeout):
             resources_created['nsg'] = True
         else:
@@ -113,7 +119,7 @@ def main():
         vng_name = "test-vng"
         vng_module.create_virtual_network_gateway(
             resource_group, vng_name, location, "Vpn", "RouteBased", 
-            "subnet_id", "public_ip_id"
+            "subnet_id", "public_ip_id", tags
         )
         if wait_for_provisioning(vng_module, resource_group, vng_name, timeout):
             resources_created['vng'] = True
@@ -122,7 +128,7 @@ def main():
 
         # Create Route Table
         rt_name = "test-rt"
-        route_table_module.create_route_table(resource_group, rt_name, location)
+        route_table_module.create_route_table(resource_group, rt_name, location, tags)
         if wait_for_provisioning(route_table_module, resource_group, rt_name, timeout):
             resources_created['route_table'] = True
         else:
@@ -131,7 +137,7 @@ def main():
         # Create Scale Set
         scale_set_name = "test-scale-set"
         scale_set_module.create_scale_set(
-            resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id"
+            resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id", tags
         )
         if wait_for_provisioning(scale_set_module, resource_group, scale_set_name, timeout):
             resources_created['scale_set'] = True
@@ -141,7 +147,7 @@ def main():
         # Create VM
         vm_name = "test-vm"
         vm_module.create_vm(
-            resource_group, vm_name, location, "nic_id", "Standard_DS1_v2"
+            resource_group, vm_name, location, "nic_id", "Standard_DS1_v2", tags
         )
         if wait_for_provisioning(vm_module, resource_group, vm_name, timeout):
             resources_created['vm'] = True
