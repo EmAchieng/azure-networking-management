@@ -1,5 +1,7 @@
 import os
 import logging
+import time
+import requests
 from dotenv import load_dotenv
 
 from modules.azure_vnet_module import AzureVNetModule
@@ -39,6 +41,18 @@ def wait_for_provisioning(module, resource_group, resource_name, timeout=300, in
     logger.error(f"Timeout occurred while waiting for {resource_name} provisioning.")
     return False
 
+def handle_rate_limiting(func, *args, **kwargs):
+    """
+    A wrapper to handle rate-limiting based on HTTP 429 responses.
+    """
+    while True:
+        response = func(*args, **kwargs)
+        if response.status_code == 429:  # Check for rate-limiting
+            logger.warning("Rate limit exceeded. Retrying after a short delay...")
+            time.sleep(30)  # Wait for 30 seconds before retrying; adjust as necessary
+            continue
+        return response
+        
 def main():
      # Log the start of the operation
     logger.info("Starting the Azure resource creation process")

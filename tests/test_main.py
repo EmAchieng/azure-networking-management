@@ -116,5 +116,20 @@ class TestMain(unittest.TestCase):
         # Check if logger.error was called
         mock_logger.error.assert_any_call("An error occurred during resource creation or deletion: VM creation failed")
 
+    @patch('main.time.sleep')
+    def test_rate_limiting_handling(self, mock_sleep):
+        # Set up mocks to simulate rate-limiting
+        mock_vnet_module = MagicMock()
+        mock_vnet_module.create_vnet.side_effect = [MagicMock(status_code=429), None]
+        mock_vnet_module.get_provisioning_state.return_value = "Succeeded"
+
+        # Call the handle_rate_limiting directly
+        with patch('main.AzureVNetModule', return_value=mock_vnet_module):
+            main.handle_rate_limiting(mock_vnet_module.create_vnet, 'resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16')
+
+        # Check that sleep was called and the function was retried
+        self.assertTrue(mock_sleep.called)
+        self.assertEqual(mock_vnet_module.create_vnet.call_count, 2)  # Ensure the function was called twice (once for 429, once for success)
+
 if __name__ == '__main__':
     unittest.main()
