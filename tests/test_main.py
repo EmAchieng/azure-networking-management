@@ -17,7 +17,20 @@ class TestMain(unittest.TestCase):
                   MockAzureSubnetModule, MockAzureVNGModule, MockAzureRouteTableModule, MockAzureScaleSetModule):
         
         # Mock environment variables
-        mock_getenv.return_value = "test-subscription-id"
+        mock_getenv.side_effect = lambda var: {
+            'AZURE_SUBSCRIPTION_ID': 'test-subscription-id',
+            'AZURE_RESOURCE_GROUP': 'test-resource-group',
+            'AZURE_LOCATION': 'switzerlandnorth',
+            'AZURE_VNET_NAME': 'test-vnet',
+            'AZURE_SUBNET_NAME': 'test-subnet',
+            'AZURE_NSG_NAME': 'test-nsg',
+            'AZURE_VNG_NAME': 'test-vng',
+            'AZURE_RT_NAME': 'test-rt',
+            'AZURE_SCALE_SET_NAME': 'test-scale-set',
+            'AZURE_VM_NAME': 'test-vm',
+            'AZURE_ENVIRONMENT': 'Development',
+            'AZURE_PROJECT': 'AzureNetwork'
+        }.get(var)
 
         # Mock module instances
         mock_vnet_module = MockAzureVNetModule.return_value
@@ -66,19 +79,19 @@ class TestMain(unittest.TestCase):
             self.assertIn("VNet is fully provisioned.", log.output[1])
 
         # Check if the resources were created in sequence
-        mock_vnet_module.create_vnet.assert_called_once_with('resource_group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_subnet_module.create_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_nsg_module.create_nsg.assert_called_once_with('resource_group', 'test-nsg', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('resource_group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_route_table_module.create_route_table.assert_called_once_with('resource_group', 'test-rt', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_scale_set_module.create_scale_set.assert_called_once_with('resource_group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
-        mock_vm_module.create_vm.assert_called_once_with('resource_group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_vnet_module.create_vnet.assert_called_once_with('test-resource-group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_subnet_module.create_subnet.assert_called_once_with('test-resource-group', 'test-vnet', 'test-subnet', '10.0.1.0/24', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_nsg_module.create_nsg.assert_called_once_with('test-resource-group', 'test-nsg', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_vng_module.create_virtual_network_gateway.assert_called_once_with('test-resource-group', 'test-vng', 'switzerlandnorth', 'Vpn', 'RouteBased', 'subnet_id', 'public_ip_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_route_table_module.create_route_table.assert_called_once_with('test-resource-group', 'test-rt', 'switzerlandnorth', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_scale_set_module.create_scale_set.assert_called_once_with('test-resource-group', 'test-scale-set', 'switzerlandnorth', 'Standard_DS1_v2', 2, 'subnet_id', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
+        mock_vm_module.create_vm.assert_called_once_with('test-resource-group', 'test-vm', 'switzerlandnorth', 'nic_id', 'Standard_DS1_v2', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})
 
         # Verify resource deletion only if they were created
-        mock_vm_module.delete_vm.assert_called_once_with('resource_group', 'test-vm')
-        mock_scale_set_module.delete_scale_set.assert_called_once_with('resource_group', 'test-scale-set')
-        mock_subnet_module.delete_subnet.assert_called_once_with('resource_group', 'test-vnet', 'test-subnet')
-        mock_vnet_module.delete_vnet.assert_called_once_with('resource_group', 'test-vnet')
+        mock_vm_module.delete_vm.assert_called_once_with('test-resource-group', 'test-vm')
+        mock_scale_set_module.delete_scale_set.assert_called_once_with('test-resource-group', 'test-scale-set')
+        mock_subnet_module.delete_subnet.assert_called_once_with('test-resource-group', 'test-vnet', 'test-subnet')
+        mock_vnet_module.delete_vnet.assert_called_once_with('test-resource-group', 'test-vnet')
 
     @patch('main.AzureVNetModule')
     @patch('main.AzureVMModule')

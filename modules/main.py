@@ -18,8 +18,14 @@ from modules.azure_scale_set_module import AzureScaleSetModule
 # Load environment variables from the .env file
 load_dotenv()
 
-# Retrieve Azure subscription ID from environment variables
+# Retrieve Azure subscription ID and other values from environment variables
 subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
+resource_group = os.getenv('AZURE_RESOURCE_GROUP', 'default-resource-group')
+location = os.getenv('AZURE_LOCATION', 'switzerlandnorth')
+tags = {
+    "Environment": os.getenv('AZURE_ENVIRONMENT', 'Development'),
+    "Project": os.getenv('AZURE_PROJECT', 'AzureNetwork')
+}
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,7 +37,6 @@ logger = logging.getLogger(__name__)
     wait=wait_exponential(multiplier=1, min=4, max=60),  # Exponential backoff from 4s to 60s
     retry=retry_if_exception_type(HTTPError)  # Only retry on HTTP errors
 )
-
 def call_azure_api(func, *args, **kwargs):
     """
     Wrapper function for Azure API calls with retry logic.
@@ -72,16 +77,13 @@ def main():
     route_table_module = AzureRouteTableModule(subscription_id)
     scale_set_module = AzureScaleSetModule(subscription_id)
 
-    resource_group = "resource_group"
-    location = "switzerlandnorth"
-
-    tags = {"Environment": "Development", "Project": "AzureNetwork"}
-
-    resources_created = {'vnet': False, 'subnet': False, 'nsg': False, 'vng': False, 'route_table': False, 'scale_set': False, 'vm': False}
+    resources_created = {
+        'vnet': False, 'subnet': False, 'nsg': False, 'vng': False, 'route_table': False, 'scale_set': False, 'vm': False
+    }
 
     try:
         # Create VNet
-        vnet_name = "test-vnet"
+        vnet_name = os.getenv('AZURE_VNET_NAME', 'test-vnet')
         call_azure_api(vnet_module.create_vnet, resource_group, vnet_name, location, "10.0.0.0/16", tags)
         if wait_for_provisioning(vnet_module, resource_group, vnet_name, timeout):
             resources_created['vnet'] = True
@@ -89,7 +91,7 @@ def main():
             raise Exception(f"VNet '{vnet_name}' failed to provision")
 
         # Create Subnet
-        subnet_name = "test-subnet"
+        subnet_name = os.getenv('AZURE_SUBNET_NAME', 'test-subnet')
         call_azure_api(subnet_module.create_subnet, resource_group, vnet_name, subnet_name, "10.0.1.0/24", tags)
         if wait_for_provisioning(subnet_module, resource_group, subnet_name, timeout):
             resources_created['subnet'] = True
@@ -97,7 +99,7 @@ def main():
             raise Exception(f"Subnet '{subnet_name}' failed to provision")
 
         # Create NSG
-        nsg_name = "test-nsg"
+        nsg_name = os.getenv('AZURE_NSG_NAME', 'test-nsg')
         call_azure_api(nsg_module.create_nsg, resource_group, nsg_name, location, tags)
         if wait_for_provisioning(nsg_module, resource_group, nsg_name, timeout):
             resources_created['nsg'] = True
@@ -105,7 +107,7 @@ def main():
             raise Exception(f"NSG '{nsg_name}' failed to provision")
 
         # Create Virtual Network Gateway
-        vng_name = "test-vng"
+        vng_name = os.getenv('AZURE_VNG_NAME', 'test-vng')
         call_azure_api(vng_module.create_virtual_network_gateway, resource_group, vng_name, location, "Vpn", "RouteBased", "subnet_id", "public_ip_id", tags)
         if wait_for_provisioning(vng_module, resource_group, vng_name, timeout):
             resources_created['vng'] = True
@@ -113,7 +115,7 @@ def main():
             raise Exception(f"Virtual Network Gateway '{vng_name}' failed to provision")
 
         # Create Route Table
-        rt_name = "test-rt"
+        rt_name = os.getenv('AZURE_RT_NAME', 'test-rt')
         call_azure_api(route_table_module.create_route_table, resource_group, rt_name, location, tags)
         if wait_for_provisioning(route_table_module, resource_group, rt_name, timeout):
             resources_created['route_table'] = True
@@ -121,7 +123,7 @@ def main():
             raise Exception(f"Route Table '{rt_name}' failed to provision")
 
         # Create Scale Set
-        scale_set_name = "test-scale-set"
+        scale_set_name = os.getenv('AZURE_SCALE_SET_NAME', 'test-scale-set')
         call_azure_api(scale_set_module.create_scale_set, resource_group, scale_set_name, location, "Standard_DS1_v2", 2, "subnet_id", tags)
         if wait_for_provisioning(scale_set_module, resource_group, scale_set_name, timeout):
             resources_created['scale_set'] = True
@@ -129,25 +131,12 @@ def main():
             raise Exception(f"Scale Set '{scale_set_name}' failed to provision")
 
         # Create VM
-        vm_name = "test-vm"
+        vm_name = os.getenv('AZURE_VM_NAME', 'test-vm')
         call_azure_api(vm_module.create_vm, resource_group, vm_name, location, "nic_id", "Standard_DS1_v2", tags)
         if wait_for_provisioning(vm_module, resource_group, vm_name, timeout):
             resources_created['vm'] = True
         else:
             raise Exception(f"VM '{vm_name}' failed to provision")
-
-        # List of all virtual network gateways
-        vng_gateways = vng_module.list_virtual_network_gateways(resource_group)
-        logger.info(f"List of VNGs: {vng_gateways}")
-
-        # Get details of a specific virtual network gateway
-        vng_details = vng_module.get_virtual_network_gateway_details(resource_group, vng_name)
-        logger.info(f"VNG Details: {vng_details}")
-
-        # Delete the virtual network gateway
-        call_azure_api(vng_module.delete_virtual_network_gateway, resource_group, vng_name)
-        logger.info(f"Virtual Network Gateway '{vng_name}' deleted successfully")
-        resources_created['vng'] = False
 
     except Exception as e:
         logger.error(f"An error occurred during resource creation or deletion: {e}")
@@ -180,6 +169,6 @@ def main():
                 logger.info(f"VNet '{vnet_name}' deleted successfully")
             except Exception as e:
                 logger.error(f"Failed to delete VNet '{vnet_name}': {e}")
-                
+
 if __name__ == "__main__":
     main()
