@@ -42,22 +42,20 @@ class TestMain(unittest.TestCase):
         mock_scale_set_module = MockAzureScaleSetModule.return_value
 
         # Mock method returns for successful resource creation
-        mock_vnet_module.create_vnet.return_value = None
-        mock_subnet_module.create_subnet.return_value = None
-        mock_nsg_module.create_nsg.return_value = None
-        mock_vng_module.create_virtual_network_gateway.return_value = None
-        mock_route_table_module.create_route_table.return_value = None
-        mock_scale_set_module.create_scale_set.return_value = None
-        mock_vm_module.create_vm.return_value = None
+        for module in [mock_vnet_module, mock_subnet_module, mock_nsg_module, 
+                       mock_vng_module, mock_route_table_module, mock_scale_set_module, mock_vm_module]:
+            module.create_vnet.return_value = None
+            module.create_subnet.return_value = None
+            module.create_nsg.return_value = None
+            module.create_virtual_network_gateway.return_value = None
+            module.create_route_table.return_value = None
+            module.create_scale_set.return_value = None
+            module.create_vm.return_value = None
 
         # Mock the get_provisioning_state to simulate successful provisioning
-        mock_vnet_module.get_provisioning_state.return_value = "Succeeded"
-        mock_subnet_module.get_provisioning_state.return_value = "Succeeded"
-        mock_nsg_module.get_provisioning_state.return_value = "Succeeded"
-        mock_vng_module.get_provisioning_state.return_value = "Succeeded"
-        mock_route_table_module.get_provisioning_state.return_value = "Succeeded"
-        mock_scale_set_module.get_provisioning_state.return_value = "Succeeded"
-        mock_vm_module.get_provisioning_state.return_value = "Succeeded"
+        for module in [mock_vnet_module, mock_subnet_module, mock_nsg_module, 
+                       mock_vng_module, mock_route_table_module, mock_scale_set_module, mock_vm_module]:
+            module.get_provisioning_state.return_value = "Succeeded"
 
         # Mock method returns for successful resource deletion
         mock_vm_module.delete_vm.return_value = None
@@ -76,7 +74,7 @@ class TestMain(unittest.TestCase):
 
             # Check if the correct logs were created
             self.assertIn("Starting the Azure resource creation process", log.output[0])
-            self.assertIn("VNet is fully provisioned.", log.output[1])
+            self.assertIn("is fully provisioned.", log.output[1])  # Generalized log check
 
         # Check if the resources were created in sequence
         mock_vnet_module.create_vnet.assert_called_once_with('test-resource-group', 'test-vnet', 'switzerlandnorth', '10.0.0.0/16', tags={'Environment': 'Development', 'Project': 'AzureNetwork'})

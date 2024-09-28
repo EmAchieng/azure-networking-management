@@ -27,6 +27,10 @@ tags = {
     "Project": os.getenv('AZURE_PROJECT', 'AzureNetwork')
 }
 
+# Validate the Azure Subscription ID
+if not subscription_id:
+    raise ValueError("Error: The environment variable 'AZURE_SUBSCRIPTION_ID' is not set or is empty.")
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -172,3 +176,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
